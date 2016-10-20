@@ -13,3 +13,5 @@ This project provides a single class, `CodersBlock.ImageFix.ImageFixer`, which p
 - `long quality` - The quality of the resulting JPG (100 is the max)
 
 `ResizeImage()` returns a byte array for the new image.
+
+Feel free to incorporate the source code, or just drop in the DLL directly (found in `/Built`).
