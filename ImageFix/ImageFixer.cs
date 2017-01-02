@@ -11,54 +11,54 @@ namespace CodersBlock.ImageFix
         /// <summary>
         /// Scales and crops an image to a more usable size.
         /// </summary>
-        public static byte[] ResizeImage(byte[] imageFile, int scaleWidth, int maxHeight, bool allowStretching, long quality)
+        public static byte[] ResizeImage(byte[] imageFile, int newWidth, int newHeight, long quality)
         {
             // turn byte array into stream and image
-            MemoryStream originalStream = new MemoryStream(imageFile);
-            Image originalImg = Image.FromStream(originalStream, false, true);
+            var originalStream = new MemoryStream(imageFile);
+            var originalImg = Image.FromStream(originalStream, false, true);
 
-            if (!allowStretching)
+            // defaults values
+            double scaledWidth = newWidth;
+            double scaledHeight = newHeight;
+            int offsetX = 0;
+            int offsetY = 0;
+
+            // make adjustments if aspect ratios differ
+            var originalAspectRatio = (double)originalImg.Width / (double)originalImg.Height;
+            var newAspectRatio = (double)newWidth / (double)newHeight;
+            if (newAspectRatio > originalAspectRatio)
             {
-                // don't let scale width exceed original width
-                scaleWidth = Math.Min(scaleWidth, originalImg.Width);
+                // wider ratio, adust vertically to scale
+                var widthScale = (double)newWidth / (double)originalImg.Width;
+                scaledHeight = Math.Ceiling(originalImg.Height * widthScale);
+                offsetY = (int)Math.Floor((scaledHeight - newHeight) / 2);
             }
-
-            // determine the scaling factor required to resize image to new width
-            double scaleFactor = (double)scaleWidth / (double)originalImg.Width;
-
-            // determine if height would be too long, even after scaling
-            int newHeight = 0;
-            int originalCropHeight = 0;
-            if (originalImg.Height * scaleFactor > maxHeight)
+            else if (newAspectRatio < originalAspectRatio)
             {
-                // too long (final image will essentially be scaled from a vertically cropped original image)
-                newHeight = maxHeight;
-                originalCropHeight = Convert.ToInt32(maxHeight / scaleFactor);
-            }
-            else
-            {
-                // height is acceptable, keep same scale as width
-                newHeight = Convert.ToInt32(originalImg.Height * scaleFactor);
-                originalCropHeight = originalImg.Height;
+                // taller ratio, adjust horizontally to scale
+                var heightScale = (double)newHeight / (double)originalImg.Height;
+                scaledWidth = Math.Ceiling(originalImg.Width * heightScale);
+                offsetX = (int)Math.Floor((scaledWidth - newWidth) / 2);
             }
 
             // color depth and resolution settings
-            Bitmap bitmap = new Bitmap(scaleWidth, newHeight);
+            var bitmap = new Bitmap(newWidth, newHeight);
             bitmap.SetResolution(72, 72);
 
             // anti-aliasing and quality
-            Graphics g = Graphics.FromImage(bitmap);
+            var g = Graphics.FromImage(bitmap);
             g.SmoothingMode = SmoothingMode.AntiAlias;
             g.InterpolationMode = InterpolationMode.HighQualityBicubic;
             g.PixelOffsetMode = PixelOffsetMode.HighQuality;
 
             // crop and resize
-            Image newImg = Image.FromStream(originalStream);
-            g.DrawImage(newImg, new Rectangle(0, 0, scaleWidth, newHeight), 0, 0, originalImg.Width, originalCropHeight, GraphicsUnit.Pixel);
+            var newImg = Image.FromStream(originalStream);
+            var destRect = new Rectangle(-offsetX, -offsetY, (int)scaledWidth, (int)scaledHeight);
+            g.DrawImage(newImg, destRect, 0, 0, originalImg.Width, originalImg.Height, GraphicsUnit.Pixel);
 
             // save as jpg and convert back to a byte array
-            MemoryStream newStream = new MemoryStream();
-            EncoderParameters encoderParams = new EncoderParameters(1);
+            var newStream = new MemoryStream();
+            var encoderParams = new EncoderParameters(1);
             encoderParams.Param[0] = new EncoderParameter(Encoder.Quality, quality);
             bitmap.Save(newStream, GetEncoder(ImageFormat.Jpeg), encoderParams);
 
